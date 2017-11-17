@@ -272,6 +272,7 @@ int main(int argc, char **argv) {
 
     //Error Checking
     cudaErrorCheck();
+    printf("GPU computation finished...\n");
   }
 
   #pragma     //Compare the results from CPU and GPU
@@ -318,6 +319,7 @@ int main(int argc, char **argv) {
     printf ("Error during cudaDeviceReset:  %s\n", cudaGetErrorString(err));
     return (ERROR);
   }
+  printf("Bye bye! \n");
 
   return 0;
 }
