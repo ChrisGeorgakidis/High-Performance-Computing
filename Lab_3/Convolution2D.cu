@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 
   int imageW;     //image width = N
   int imageH;     //image height = N
-  unsigned int i;
+  unsigned int i, block_size;
   cudaError_t err;
 
 	printf("Enter filter radius : ");
@@ -234,7 +234,14 @@ int main(int argc, char **argv) {
     }
   }
 
-  dim3 threadsPerBlock(N, N);                //geometry for block
+  if (N*N > 1024){
+    block_size = 32;   //max number of threads per block
+  }
+  else {
+    block_size = N;
+  }
+
+  dim3 threadsPerBlock(block_size, block_size);              //geometry for block
   dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      //geometry for grid
 
   #pragma   //Initializations And copy memory from host to device
