@@ -8,6 +8,7 @@
 
 unsigned int filter_radius;
 
+//#define CHECK_FOR_DIM
 #define FILTER_LENGTH 	(2 * filter_radius + 1)
 #define ABS(val)  	((val)<0.0 ? (-(val)) : (val))
 #define accuracy  	0.00005
@@ -141,7 +142,7 @@ int imageW, int imageH, int filterR) {
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
 
-  //pointers for the host
+	//pointers for the host
   float
   *h_Filter,
   *h_Input,
@@ -160,17 +161,18 @@ int main(int argc, char **argv) {
   int imageW;     //image width = N
   int imageH;     //image height = N
   unsigned int i, block_size;
+	float diff = 0;
   cudaError_t err;
 
 	printf("Enter filter radius : ");
-	scanf("%d", &filter_radius);
+	scanf("%d", &filter_radius);					// TODO Warning
 
   // Ta imageW, imageH ta dinei o xrhsths kai thewroume oti einai isa,
   // dhladh imageW = imageH = N, opou to N to dinei o xrhsths.
   // Gia aplothta thewroume tetragwnikes eikones.
 
   printf("Enter image size. Should be a power of two and greater than %d : ", FILTER_LENGTH);
-  scanf("%d", &imageW);
+  scanf("%d", &imageW);								//TODO Warning
   imageH = imageW;
 
   printf("Image Width x Height = %i x %i\n\n", imageW, imageH);
@@ -234,15 +236,19 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (N*N > 1024){
-    block_size = 32;   //max number of threads per block
-  }
-  else {
-    block_size = N;
-  }
+	#ifdef CHECK_FOR_DIM
+  	if (N*N > 1024){
+    	block_size = 32;   //max number of threads per block
+  	}
+  	else {
+    	block_size = N;
+  	}
+	#else
+		block_size = N;
+	#endif
 
-  dim3 threadsPerBlock(block_size, block_size);              //geometry for block
-  dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      //geometry for grid
+  dim3 threadsPerBlock(block_size, block_size);				//geometry for block
+  dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      					//geometry for grid
 
   #pragma   //Initializations And copy memory from host to device
   {
@@ -322,8 +328,10 @@ int main(int argc, char **argv) {
   {
     /*Kanete h sugrish anamesa se GPU kai CPU kai an estw kai kapoio apotelesma xeperna thn akriveia pou exoume orisei, tote exoume sfalma kai mporoume endexomenws na termatisoume to programma mas*/
     for (i = 0; i < ArraySize; i++){
-      if (h_OutputGPU[i] != h_OutputCPU[i]){
-        printf("ERROR: Not the same result between h_OutputCPU and h_OutputGPU at index i = %d\n", i);
+			diff = ABS(h_OutputGPU[i] - h_OutputCPU[i]);
+			printf("The difference between the values of h_OutputCPU and h_OutputGPU at index i = %u is diff = %g\n", i, diff);
+      if (diff > accuracy){
+        printf("\t|->ERROR: The difference between the values of h_OutputCPU and h_OutputGPU at index i = %u is bigger than the given accuracy.\n", i);
       }
     }
   }
