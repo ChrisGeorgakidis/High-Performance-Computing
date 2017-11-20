@@ -22,6 +22,7 @@ unsigned int filter_radius;
   cudaError_t error = cudaGetLastError();\
   if (error != cudaSuccess) {\
     printf("Cuda Error Found %s:%d:  '%s'\n", __FILE__, __LINE__, cudaGetErrorString(error));\
+    freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);\
     return (ERROR);\
   }\
 }\
@@ -33,7 +34,7 @@ __global__ void convolutionRow(float *Input, float *Filter, float *Output, int f
 {
   float sum = 0;
   int d, k;
-
+  
   int ix = blockIdx.x * blockDim.x + threadIdx.x;
   int iy = blockIdx.y * blockDim.y + threadIdx.y;
   int dimx = blockDim.x * gridDim.x;
@@ -43,7 +44,7 @@ __global__ void convolutionRow(float *Input, float *Filter, float *Output, int f
     d = ix + k;
 
     if (d >= 0 && d < imageW){
-      sum += Input[iy * imageW + d] * Filter[filterR - k];
+      sum += Input[iy * dimx + d] * Filter[filterR - k];
     } 
     
     Output[idx] = sum;
@@ -71,7 +72,7 @@ __global__ void convolutionColumn(float *Input, float *Filter, float *Output, in
     d = iy + k;
 
     if (d >= 0 && d < imageH){
-      sum += Input[d * imageW + ix] * Filter[filterR - k];
+      sum += Input[d * dimx + ix] * Filter[filterR - k];
     } 
     
     Output[idx] = sum;
@@ -138,30 +139,103 @@ int imageW, int imageH, int filterR) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// Free Alocated Host and Device Memory
+////////////////////////////////////////////////////////////////////////////////
+int freeMemory(float * h_Filter, float *h_Input, float *h_Buffer, float *h_OutputCPU, float *h_OutputGPU, float *d_Filter, float *d_Input, float *d_Buffer, float *d_OutputGPU){
+  cudaError_t err;
+
+  // free all the allocated memory for the host
+  printf("Free host memory...\n");
+  if (h_OutputGPU != NULL){
+    free(h_OutputGPU);
+  }
+  if (h_OutputCPU != NULL){
+    free(h_OutputCPU);
+  }
+  if (h_Buffer != NULL){
+    free(h_Buffer);
+  }
+  if (h_Input != NULL){
+    free(h_Input);
+  }
+  if (h_Filter != NULL){
+    free(h_Filter);
+  }
+  
+  //free all the allocated device (GPU) memory
+  printf("Free device memory...\n");
+  if (d_OutputGPU != NULL){
+    err = cudaFree(d_OutputGPU);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaFree (d_OutputGPU):  %s\n", cudaGetErrorString(err));
+      return (ERROR);
+    }
+  }
+  if (d_Buffer != NULL){
+    err = cudaFree(d_Buffer);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaFree (d_Buffer):  %s\n", cudaGetErrorString(err));
+      return (ERROR);
+    }
+  }
+  if (d_Input != NULL){
+    err = cudaFree(d_Input);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaFree (d_Input):  %s\n", cudaGetErrorString(err));
+      return (ERROR);
+    }
+  }
+  if (d_Filter != NULL){
+    err = cudaFree(d_Filter);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaFree (d_Filter):  %s\n", cudaGetErrorString(err));
+      return (ERROR);
+    }
+  }
+  
+  // Do a device reset just in case... Bgalte to sxolio otan ylopoihsete CUDA
+  printf("Reset Device\n");
+  err = cudaDeviceReset();
+  if (err != cudaSuccess){
+    printf("Error during cudaDeviceReset:  %s\n", cudaGetErrorString(err));
+    return (ERROR);
+  }
+
+  return (0);
+}
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////
 // Main program
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
 
 	//pointers for the host
   float
-  *h_Filter,
-  *h_Input,
-  *h_Buffer,
-  *h_OutputCPU,
-  *h_OutputGPU;
+  *h_Filter = NULL,
+  *h_Input = NULL,
+  *h_Buffer = NULL,
+  *h_OutputCPU = NULL,
+  *h_OutputGPU = NULL;
 
   //pointers for the device
   float
-  *d_Filter,
-  *d_Input,
-  *d_Buffer,
-  *d_OutputGPU;
+  *d_Filter = NULL,
+  *d_Input = NULL,
+  *d_Buffer = NULL,
+  *d_OutputGPU = NULL;
 
 
   int imageW;     //image width = N
   int imageH;     //image height = N
   unsigned int i, block_size;
-	float diff = 0;
+	float diff = 0, max_diff = 0;
   cudaError_t err;
 
 	printf("Enter filter radius : ");
@@ -178,31 +252,36 @@ int main(int argc, char **argv) {
   printf("Image Width x Height = %i x %i\n\n", imageW, imageH);
   printf("Allocating and initializing host arrays...\n");
 
-  #pragma   //Allocate host (CPU) memory
+  //Allocate host (CPU) memory
   {
     h_Filter    = (float *)malloc(FILTER_LENGTH * sizeof(float));
     if (h_Filter == NULL){
       printf("Error allocating memory on host for h_Filter");
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     h_Input     = (float *)malloc(ArraySize * sizeof(float));
     if (h_Input == NULL){
       printf("Error allocating memory on host for h_Input");
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     h_Buffer    = (float *)malloc(ArraySize * sizeof(float));
     if (h_Buffer == NULL){
       printf("Error allocating memory on host for h_Buffer");
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     h_OutputCPU = (float *)malloc(ArraySize * sizeof(float));
     if (h_OutputCPU == NULL){
       printf("Error allocating memory on host for h_OutputCPU");
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     h_OutputGPU = (float *)malloc(ArraySize * sizeof(float));
     if (h_OutputGPU == NULL){
       printf("Error allocating memory on host for h_OutputGPU");
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
 
@@ -212,26 +291,30 @@ int main(int argc, char **argv) {
   }
 
   printf("Allocate device (GPU) memory\n");
-  #pragma   //Allocate device (GPU) memory
+  //Allocate device (GPU) memory
   {
     err = cudaMalloc( (void**) &d_Filter, FILTER_LENGTH * sizeof(float) );
     if (err != cudaSuccess){
       printf("Error allocating memory on host for d_Filter:   %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     err = cudaMalloc( (void**) &d_Input, ArraySize * sizeof(float) );
     if (err != cudaSuccess){
       printf("Error allocating memory on host for d_Input:   %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     err = cudaMalloc( (void**) &d_Buffer, ArraySize * sizeof(float) );
     if (err != cudaSuccess){
       printf("Error allocating memory on host for d_Buffer:   %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     err = cudaMalloc( (void**) &d_OutputGPU, ArraySize * sizeof(float) );
     if (err != cudaSuccess){
       printf("Error allocating memory on host for d_OutputGPU:   %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
   }
@@ -247,10 +330,10 @@ int main(int argc, char **argv) {
 		block_size = N;
 	#endif
 
-  dim3 threadsPerBlock(block_size, block_size);				//geometry for block
-  dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      					//geometry for grid
+  dim3 threadsPerBlock(block_size/NUMBLOCKS, block_size/NUMBLOCKS);				//geometry for block
+  dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      					                    //geometry for grid
 
-  #pragma   //Initializations And copy memory from host to device
+  //Initializations And copy memory from host to device
   {
     srand(200);
     // Random initialization of h_Filter
@@ -268,16 +351,18 @@ int main(int argc, char **argv) {
     err = cudaMemcpy(d_Filter, h_Filter, FILTER_LENGTH * sizeof(float), cudaMemcpyHostToDevice);
     if(err != cudaSuccess){
       printf("Error during cudaMemcpy of h_Filter to d_Filter:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
     err = cudaMemcpy(d_Input, h_Input, ArraySize * sizeof(float), cudaMemcpyHostToDevice);
     if(err != cudaSuccess){
       printf("Error during cudaMemcpy of h_Input to d_Input:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
   }
 
-  #pragma   //CPU Computation
+  //CPU Computation
   {
     // To parakatw einai to kommati pou ekteleitai sthn CPU kai me vash auto prepei na ginei h sugrish me thn GPU.
     printf("CPU computation is about to start...\n");
@@ -288,7 +373,7 @@ int main(int argc, char **argv) {
     printf("CPU computation finished...\n");
   }
 
-  #pragma   //GPU Computation
+  //GPU Computation
   {
     printf("GPU computation is about to start...\n");
 
@@ -299,13 +384,10 @@ int main(int argc, char **argv) {
     err = cudaDeviceSynchronize();
     if (err != cudaSuccess){
       printf ("Error during cudaDeviceSynchronize:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
-    // err = cudaMemcpy(h_OutputGPU, d_Buffer, ArraySize * sizeof(float), cudaMemcpyDeviceToHost);
-    // if(err != cudaSuccess){
-    //   printf("Error during cudaMemcpy of d_Buffer to h_OutputGPU:  %s\n", cudaGetErrorString(err));
-    //   return (ERROR);
-    // }
+    
     //Error Checking
     cudaErrorCheck();
 
@@ -316,6 +398,7 @@ int main(int argc, char **argv) {
     err = cudaMemcpy(h_OutputGPU, d_OutputGPU, ArraySize * sizeof(float), cudaMemcpyDeviceToHost);
     if(err != cudaSuccess){
       printf("Error during cudaMemcpy of d_OutputGPU to h_OutputGPU:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
       return (ERROR);
     }
 
@@ -324,57 +407,25 @@ int main(int argc, char **argv) {
     printf("GPU computation finished...\n");
   }
 
-  #pragma     //Compare the results from CPU and GPU
+  //Compare the results from CPU and GPU
   {
     /*Kanete h sugrish anamesa se GPU kai CPU kai an estw kai kapoio apotelesma xeperna thn akriveia pou exoume orisei, tote exoume sfalma kai mporoume endexomenws na termatisoume to programma mas*/
     for (i = 0; i < ArraySize; i++){
 			diff = ABS(h_OutputGPU[i] - h_OutputCPU[i]);
 			printf("The difference between the values of h_OutputCPU and h_OutputGPU at index i = %u is diff = %g\n", i, diff);
+      if (diff > max_diff) {
+        max_diff = diff;
+      }
       if (diff > accuracy){
         printf("\t|->ERROR: The difference between the values of h_OutputCPU and h_OutputGPU at index i = %u is bigger than the given accuracy.\n", i);
       }
     }
+
+    printf("Max difference between the values of h_OutputCPU and h_OutputGPU is max_diff = %g\n", max_diff);
   }
 
-  #pragma     //Free allocated host and device memory
-  {
-    // free all the allocated memory for the host
-    free(h_OutputGPU);
-    free(h_OutputCPU);
-    free(h_Buffer);
-    free(h_Input);
-    free(h_Filter);
-
-    //free all the allocated device (GPU) memory
-    err = cudaFree(d_OutputGPU);
-    if(err != cudaSuccess){
-      printf("Error during cudaFree (d_OutputGPU):  %s\n", cudaGetErrorString(err));
-      return (ERROR);
-    }
-    err = cudaFree(d_Buffer);
-    if(err != cudaSuccess){
-      printf("Error during cudaFree (d_Buffer):  %s\n", cudaGetErrorString(err));
-      return (ERROR);
-    }
-    err = cudaFree(d_Input);
-    if(err != cudaSuccess){
-      printf("Error during cudaFree (d_Input):  %s\n", cudaGetErrorString(err));
-      return (ERROR);
-    }
-    err = cudaFree(d_Filter);
-    if(err != cudaSuccess){
-      printf("Error during cudaFree (d_Filter):  %s\n", cudaGetErrorString(err));
-      return (ERROR);
-    }
-  }
-
-  // Do a device reset just in case... Bgalte to sxolio otan ylopoihsete CUDA
-  err = cudaDeviceReset();
-  if (err != cudaSuccess){
-    printf ("Error during cudaDeviceReset:  %s\n", cudaGetErrorString(err));
-    return (ERROR);
-  }
-  printf("Bye bye! \n");
+  //Free allocated host and device memory
+  freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
 
   return 0;
 }
