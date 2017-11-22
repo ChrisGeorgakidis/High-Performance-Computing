@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "gputimer.h"
+#include <time.h>
 
 unsigned int filter_radius;
 
@@ -44,7 +46,7 @@ __global__ void convolutionRow(float *Input, float *Filter, float *Output, int f
     d = ix + k;
 
     if (d >= 0 && d < imageW){
-      sum += Input[iy * dimx + d] * Filter[filterR - k];
+      sum += Input[iy * imageW + d] * Filter[filterR - k];
     } 
     
     Output[idx] = sum;
@@ -72,7 +74,7 @@ __global__ void convolutionColumn(float *Input, float *Filter, float *Output, in
     d = iy + k;
 
     if (d >= 0 && d < imageH){
-      sum += Input[d * dimx + ix] * Filter[filterR - k];
+      sum += Input[d * imageW + ix] * Filter[filterR - k];
     } 
     
     Output[idx] = sum;
@@ -236,9 +238,11 @@ int main(int argc, char **argv) {
   int imageH;     //image height = N
   unsigned int i, block_size;
 	float diff = 0, max_diff = 0;
+  struct timespec tv1, tv2;
   cudaError_t err;
+  GpuTimer timer;
 
-	printf("Enter filter radius : ");
+  printf("Enter filter radius : ");
 	scanf("%d", &filter_radius);					// TODO Warning
 
   // Ta imageW, imageH ta dinei o xrhsths kai thewroume oti einai isa,
@@ -333,7 +337,7 @@ int main(int argc, char **argv) {
   dim3 threadsPerBlock(block_size/NUMBLOCKS, block_size/NUMBLOCKS);				//geometry for block
   dim3 numBlocks(NUMBLOCKS, NUMBLOCKS);      					                    //geometry for grid
 
-  //Initializations And copy memory from host to device
+  //Initializations
   {
     srand(200);
     // Random initialization of h_Filter
@@ -345,34 +349,49 @@ int main(int argc, char **argv) {
     for (i = 0; i < ArraySize; i++) {
         h_Input[i] = (float)rand() / ((float)RAND_MAX / 255) + (float)rand() / (float)RAND_MAX;
     }
-
-    printf("Copy host memory to device\n");
-    //Copy host memory to device
-    err = cudaMemcpy(d_Filter, h_Filter, FILTER_LENGTH * sizeof(float), cudaMemcpyHostToDevice);
-    if(err != cudaSuccess){
-      printf("Error during cudaMemcpy of h_Filter to d_Filter:  %s\n", cudaGetErrorString(err));
-      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
-      return (ERROR);
-    }
-    err = cudaMemcpy(d_Input, h_Input, ArraySize * sizeof(float), cudaMemcpyHostToDevice);
-    if(err != cudaSuccess){
-      printf("Error during cudaMemcpy of h_Input to d_Input:  %s\n", cudaGetErrorString(err));
-      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
-      return (ERROR);
-    }
   }
 
   //CPU Computation
   {
     // To parakatw einai to kommati pou ekteleitai sthn CPU kai me vash auto prepei na ginei h sugrish me thn GPU.
     printf("CPU computation is about to start...\n");
-
+    //Get the starting time
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
     convolutionRowCPU(h_Buffer, h_Input, h_Filter, imageW, imageH, filter_radius); // convolution kata grammes
     convolutionColumnCPU(h_OutputCPU, h_Buffer, h_Filter, imageW, imageH, filter_radius); // convolution kata sthles
+    //Take the end time
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
 
     printf("CPU computation finished...\n");
   }
 
+  //Calculate the duration of the CPU computation and report it
+  {
+    printf("Total time = %10g seconds\n",
+           (double)(tv2.tv_nsec - tv1.tv_nsec) / 1000000000.0 +
+               (double)(tv2.tv_sec - tv1.tv_sec));
+  }
+
+  //Copy from host to device
+  {
+    printf("Copy host memory to device\n");
+    timer.Start(); //Start couunt time
+    //Copy host memory to device
+    err = cudaMemcpy(d_Filter, h_Filter, FILTER_LENGTH * sizeof(float), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaMemcpy of h_Filter to d_Filter:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
+      return (ERROR);
+    }
+    err = cudaMemcpy(d_Input, h_Input, ArraySize * sizeof(float), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess)
+    {
+      printf("Error during cudaMemcpy of h_Input to d_Input:  %s\n", cudaGetErrorString(err));
+      freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
+      return (ERROR);
+    }
+  }
   //GPU Computation
   {
     printf("GPU computation is about to start...\n");
@@ -404,7 +423,13 @@ int main(int argc, char **argv) {
 
     //Error Checking
     cudaErrorCheck();
+    timer.Stop();         //Stop count time
     printf("GPU computation finished...\n");
+  }
+
+  //Execution Time of GPU 
+  {
+    printf("Time elapsed = %g ms\n", timer.Elapsed());
   }
 
   //Compare the results from CPU and GPU
@@ -426,6 +451,7 @@ int main(int argc, char **argv) {
 
   //Free allocated host and device memory
   freeMemory(h_Filter, h_Input, h_Buffer, h_OutputCPU, h_OutputGPU, d_Filter, d_Input, d_Buffer, d_OutputGPU);
-
+  
+  timer.~GpuTimer();
   return 0;
 }
