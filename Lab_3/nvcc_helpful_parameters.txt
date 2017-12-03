@@ -1,0 +1,73 @@
+Options for specifying the compilation phase
+============================================
+
+--compile                                  (-c)                              
+        Compile each .c/.cc/.cpp/.cxx/.cu input file into an object file.
+
+--device-c                                 (-dc)                             
+        Compile each .c/.cc/.cpp/.cxx/.cu input file into an object file that contains
+        relocatable device code.  It is equivalent to '--relocatable-device-code=true
+        --compile'.
+
+--device-w                                 (-dw)                             
+        Compile each .c/.cc/.cpp/.cxx/.cu input file into an object file that contains
+        executable device code.  It is equivalent to '--relocatable-device-code=false
+        --compile'.
+
+--run   (-run)                            
+        This option compiles and links all inputs into an executable, and executes
+        it.  Or, when the input is a single executable, it is executed without any
+        compilation or linking. This step is intended for developers who do not want
+        to be bothered with setting the necessary environment variables; these are
+        set temporarily by nvcc).
+
+Options for specifying behavior of compiler/linker.
+===================================================
+
+--profile                                  (-pg)                             
+        Instrument generated code/executable for use by gprof (Linux only).
+
+--debug (-g)                              
+        Generate debug information for host code.
+
+--device-debug                             (-G)                              
+        Generate debug information for device code. Turns off all optimizations.
+        Don't use for profiling; use -lineinfo instead.
+
+--generate-line-info                       (-lineinfo)                       
+        Generate line-number information for device code.
+
+--optimize <level>                         (-O)                              
+        Specify optimization level for host code.
+
+--machine {32|64}                          (-m)                              
+        Specify 32 vs 64 bit architecture.
+        Allowed values for this option:  32,64.
+        Default value:  64.
+
+Options for passing specific phase options
+==========================================
+These allow for passing options directly to the intended compilation phase.  Using
+these, users have the ability to pass options to the lower level compilation tools,
+without the need for nvcc to know about each and every such option.
+
+--compiler-options <options>,...           (-Xcompiler)                      
+        Specify options directly to the compiler/preprocessor.
+
+Miscellaneous options for guiding the compiler driver.
+======================================================
+
+--run-args <arguments>,...                 (-run-args)                       
+        Used in combination with option --run to specify command line arguments for
+        the executable.
+
+--use_fast_math                            (-use_fast_math)                  
+        Make use of fast math library.  '--use_fast_math' implies '--ftz=true --prec-div=false
+        --prec-sqrt=false --fmad=true'.
+
+--ftz {true|false}                         (-ftz)                            
+        This option controls single-precision denormals support. '--ftz=true' flushes
+        denormal values to zero and '--ftz=false' preserves denormal values. '--use_fast_math'
+        implies '--ftz=true'.
+        Default value:  false.
+
