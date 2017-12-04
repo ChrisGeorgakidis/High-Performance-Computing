@@ -109,13 +109,21 @@ __global__ void convolutionRowSharedMem(dataType *Input, dataType *Output, int f
   int ty = threadIdx.y + filterR;
   int ix = blockIdx.x * blockDim.x + tx;
   int iy = blockIdx.y * blockDim.y + ty;
- 
+
+  //indexes in arrays with padding
+  int ptx = threadIdx.x;
+  int pty = threadIdx.y;
+  int pix = blockIdx.x * blockDim.x + ptx;
+  int piy = blockIdx.y * blockDim.y + pty;
+
   int imageWithPaddingW = imageW + 2 * filterR;
 
   //shared memory for Input
-  __shared__ dataType s_Input[SH_MEM_SIZE * SH_MEM_SIZE];
+  __shared__ dataType s_Input[SH_MEM_SIZE * (SH_MEM_SIZE + 2 * filter_radius) ];   //64x64 shared memory [16  32  16]
 
   //collaboratively load tiles into __shared__
+  s_Input[pty * SH_MEM_SIZE + ptx] = Input[piy * imageWithPaddingW + pix]
+
   s_Input[ty * SH_MEM_SIZE + tx] = Input[iy * imageWithPaddingW + ix];
   __syncthreads();
 
@@ -129,7 +137,7 @@ __global__ void convolutionRowSharedMem(dataType *Input, dataType *Output, int f
     }
     else
     {
-      sum += Input[iy * imageWithPaddingW + ix + k] * d_Filter[filterR - k];
+      sum += Input[iy * imageWithPaddingW + ix] * d_Filter[filterR - k];
     }
     Output[iy * imageWithPaddingW + ix] = sum;
   }
@@ -158,7 +166,7 @@ __global__ void convolutionColumnSharedMem(dataType *Input, dataType *Output, in
   __shared__ dataType s_Input[SH_MEM_SIZE * SH_MEM_SIZE];
 
   //collaboratively load tiles into __shared__
-  s_Input[ty * SH_MEM_SIZE + tx] = Input[iy * imageWithPaddingW + ix];
+  s_Input[ty * SH_MEM_SIZE + tx] = Input[iy * imageWithPaddingW + iy];
   __syncthreads();
 
   for (k = -filterR; k <= filterR; k++){
@@ -171,7 +179,7 @@ __global__ void convolutionColumnSharedMem(dataType *Input, dataType *Output, in
     }
     else
     {
-      sum += Input[(iy + k) * imageWithPaddingW + ix] * d_Filter[filterR - k];
+      sum += Input[iy * imageWithPaddingW + ix] * d_Filter[filterR - k];
     }
 
     Output[iy * imageWithPaddingW + ix] = sum;
@@ -489,7 +497,7 @@ int main(int argc, char **argv) {
 
     //kernel for row convolution
     //execute grid of numBlocks blocks of threadsPerBlock threads each
-    convolutionRowSharedMem <<< numBlocks, threadsPerBlock >>> (d_Input, d_Buffer, filter_radius, imageW);
+    convolutionRow <<< numBlocks, threadsPerBlock >>> (d_Input, d_Buffer, filter_radius, imageW);
 
     err = cudaDeviceSynchronize();
     if (err != cudaSuccess){
@@ -503,7 +511,7 @@ int main(int argc, char **argv) {
 
     //kernel for column convolution
     //execute grid of numBlocks blocks of threadsPerBlock threads each
-    convolutionColumnSharedMem <<< numBlocks, threadsPerBlock >>> (d_Buffer, d_OutputGPU, filter_radius, imageW, imageH);
+    convolutionColumn <<< numBlocks, threadsPerBlock >>> (d_Buffer, d_OutputGPU, filter_radius, imageW, imageH);
 
     err = cudaMemcpy(h_OutputGPU, d_OutputGPU, newImageSize * sizeof(dataType), cudaMemcpyDeviceToHost);
     if(err != cudaSuccess){
