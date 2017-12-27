@@ -28,24 +28,10 @@ void run_cpu_gray_test(PGM_IMG img_in, char *out_filename)
 {
     //unsigned int timer = 0;
     PGM_IMG img_obuf;
-    struct timespec tv1, tv2;
+    
     
     printf("Starting CPU processing...\n");
-    printf("Start timing...\n");
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tv1);
     img_obuf = contrast_enhancement_g(img_in);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &tv2);
-    printf("End timing...\n");
-
-    //Calculate the duration of the CPU computation and report it
-    {
-        printf("\033[1;33m");
-        printf("Total time = %10g seconds\n",
-            (double)(tv2.tv_nsec - tv1.tv_nsec) / 1000000000.0 +
-               (double)(tv2.tv_sec - tv1.tv_sec));
-    }
-    printf("\033[0m");
-
     write_pgm(img_obuf, out_filename);
     free_pgm(img_obuf);
 }
