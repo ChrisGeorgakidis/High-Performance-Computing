@@ -1,0 +1,73 @@
+Running contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141076 seconds
+[1;34mhistogram_equalization = [1;35m 0.0024031 seconds
+[1;34mTotal Time = [1;33m   3.81385 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00140979 seconds
+[1;34mhistogram_equalization = [1;35m0.00241969 seconds
+[1;34mTotal Time = [1;33m   3.82949 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00140999 seconds
+[1;34mhistogram_equalization = [1;35m0.00239996 seconds
+[1;34mTotal Time = [1;33m   3.80995 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141299 seconds
+[1;34mhistogram_equalization = [1;35m0.00217314 seconds
+[1;34mTotal Time = [1;33m   3.58613 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141033 seconds
+[1;34mhistogram_equalization = [1;35m0.00240323 seconds
+[1;34mTotal Time = [1;33m   3.81356 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141021 seconds
+[1;34mhistogram_equalization = [1;35m0.00218564 seconds
+[1;34mTotal Time = [1;33m   3.59585 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m 0.0014109 seconds
+[1;34mhistogram_equalization = [1;35m0.00214648 seconds
+[1;34mTotal Time = [1;33m   3.55738 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00142851 seconds
+[1;34mhistogram_equalization = [1;35m0.00241609 seconds
+[1;34mTotal Time = [1;33m    3.8446 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00142924 seconds
+[1;34mhistogram_equalization = [1;35m0.00238348 seconds
+[1;34mTotal Time = [1;33m   3.81272 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141292 seconds
+[1;34mhistogram_equalization = [1;35m0.00216445 seconds
+[1;34mTotal Time = [1;33m   3.57737 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00142715 seconds
+[1;34mhistogram_equalization = [1;35m0.00239916 seconds
+[1;34mTotal Time = [1;33m   3.82631 ms
+[0m[0mRunning contrast enhancement for gray-scale images.
+Image size: 1451 x 1767
+Starting CPU processing...
+[1;34mhistogram = [1;32m0.00141054 seconds
+[1;34mhistogram_equalization = [1;35m0.00215728 seconds
+[1;34mTotal Time = [1;33m   3.56783 ms
+[0m[0m

@@ -1,13 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include "hist-equ.h"
 
 void run_cpu_gray_test(PGM_IMG img_in, char *out_filename);
 
 int main(int argc, char *argv[]){
     PGM_IMG img_ibuf_g;
+    cudaError_t err;
 
 	if (argc != 3) {
 		printf("Run with input file name and output file name as arguments\n");
@@ -17,7 +17,17 @@ int main(int argc, char *argv[]){
     printf("Running contrast enhancement for gray-scale images.\n");
     img_ibuf_g = read_pgm(argv[1]);
     run_cpu_gray_test(img_ibuf_g, argv[2]);
-    free_pgm(img_ibuf_g);
+    free_pgm(img_ibuf_g); //free input image
+
+    //Reset Device before exit the program
+	printf("Reset Device\n");
+	err = cudaDeviceReset();
+	if (err != cudaSuccess){
+		printf("\033[1;31m");
+		printf("Error during cudaDeviceReset:  %s\n", cudaGetErrorString(err));
+		printf("\033[0m");
+		exit(1);
+	}
 
 	return 0;
 }
@@ -26,20 +36,21 @@ int main(int argc, char *argv[]){
 
 void run_cpu_gray_test(PGM_IMG img_in, char *out_filename)
 {
-    //unsigned int timer = 0;
+    unsigned int timer = 0;
     PGM_IMG img_obuf;
     
     
-    printf("Starting CPU processing...\n");
+    printf("Starting processing...\n");
     img_obuf = contrast_enhancement_g(img_in);
     write_pgm(img_obuf, out_filename);
-    free_pgm(img_obuf);
+    free_pgm(img_obuf); //free result image
 }
 
 
 PGM_IMG read_pgm(const char * path){
     FILE * in_file;
     char sbuf[256];
+    cudaError_t error;
     
     
     PGM_IMG result;
@@ -56,8 +67,16 @@ PGM_IMG read_pgm(const char * path){
     fscanf(in_file, "%d\n",&v_max);
     printf("Image size: %d x %d\n", result.w, result.h);
     
-
-    result.img = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
+    //Allocate pinned memory for the result image
+    error = cudaMallocHost((void **)&result.img, result.w*result.h*sizeof(unsigned char));
+    if (error != cudaSuccess)
+    {
+        printf("\033[1;31m");
+        printf("Error allocating pinned memory for image:   %s\n", cudaGetErrorString(error));
+        printf("\033[0m");
+        exit(1);
+    }
+    //result.img = (unsigned char *)malloc(result.w * result.h * sizeof(unsigned char));
 
         
     fread(result.img,sizeof(unsigned char), result.w*result.h, in_file);    
@@ -77,6 +96,15 @@ void write_pgm(PGM_IMG img, const char * path){
 
 void free_pgm(PGM_IMG img)
 {
-    free(img.img);
+    //free(img.img);
+    //Now the image is pinned memory.
+    cudaError_t error;
+    error = cudaFreeHost(img.img);
+    if (error != cudaSuccess) {
+        printf("\033[1;31m");
+        printf("Error freeing pinned memory for image:   %s\n", cudaGetErrorString(error));
+        printf("\033[0m");
+        exit(1);
+    }
 }
 

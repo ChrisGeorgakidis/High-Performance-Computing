@@ -6,3 +6,7 @@
 *.xlsx
 
 *.pdf
+
+*.c
+
+Lab_5/Code/c_files/histogram-equalization
